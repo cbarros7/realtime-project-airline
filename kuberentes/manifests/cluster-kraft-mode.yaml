@@ -1,0 +1,106 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: controller
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  replicas: 3
+  roles:
+    - controller
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 20Gi
+        deleteClaim: false
+---
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: broker
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  replicas: 3
+  roles:
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 20Gi
+        deleteClaim: false
+---
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka-cluster
+  namespace: kafka-tfg
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+    strimzi.io/kind: Kafka
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    app.kubernetes.io/name : "ingress-nginx"
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+spec:
+  kafka:
+    version: 3.7.0
+    metadataVersion: 3.7-IV4
+    replicas: 3
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: external
+        port: 9094
+        type: ingress
+        tls: true
+        authentication:
+          type: tls
+        configuration:
+          bootstrap:
+            host: bootstrap.10.42.0.0.nip.io
+            annotations:
+              kubernetes.io/ingress.class: nginx
+          brokers:
+          - broker: 0
+            host: broker-0.10.42.0.0.nip.io
+            annotations:
+                kubernetes.io/ingress.class: nginx
+          - broker: 1
+            host: broker-1.10.42.0.0.nip.io
+            annotations:
+                kubernetes.io/ingress.class: nginx
+          - broker: 2
+            host: broker-2.10.42.0.0.nip.io
+            annotations:
+                kubernetes.io/ingress.class: nginx
+          class: nginx
+      - name: external2
+        port: 9095
+        type: loadbalancer
+        tls: false
+        #networkPolicyPeers:
+        #  - podSelector:
+        #      matchLabels:
+        #        app: kafka-app
+        #        app.kubernetes.io/name: ingress-nginx
+    config:
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
