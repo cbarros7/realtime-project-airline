@@ -1,0 +1,26 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: kafka-connect-image-test-3
+  labels:
+    strimzi.io/cluster: docker-connect-cluster
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  replicas: 1
+  bootstrapServers: bootstrap.10.42.0.0.nip.io:9095
+  build:
+    output:
+      type: docker
+      image: docker.io/chars727/kafka-connect-scala:latest
+      pushSecret: secretregistry
+    plugins: 
+      - name: camel-timer
+        artifacts:
+          - type: tgz
+            url: https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/camel-timer-kafka-connector/0.8.0/camel-timer-kafka-connector-0.8.0-package.tar.gz
+            sha512sum: c0102700ae176b1ef078bdb86d640935a1333865e58b870f6b0ef3d9dad067221122aee6bf52852dad209a7c2051f359e0434fc7fbd783fb50e21707c7577ef9
+  template:
+    pod:
+      imagePullSecrets:
+        - name: secretregistry
